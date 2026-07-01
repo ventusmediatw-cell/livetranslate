@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LiveTranslate</title>
+<style>
+  :root{
+    --bg:#0b0d10; --frost:rgba(22,26,33,.72); --sheet:rgba(18,22,28,.96);
+    --txt:#eef1f5; --dim:#7d8794; --hair:rgba(255,255,255,.08);
+    --accent:#6fd0c4; --red:#e0685f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,"SF Pro Text","PingFang TC","Noto Sans TC",sans-serif;
+    background:radial-gradient(900px 500px at 50% -8%, #12161d 0%, var(--bg) 62%);
+    color:var(--txt); height:100vh; overflow:hidden; position:relative;
+    -webkit-font-smoothing:antialiased;
+  }
+  .top{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; align-items:center; gap:11px;
+    padding:11px 16px calc(11px + env(safe-area-inset-top,0)); background:var(--frost);
+    backdrop-filter:blur(22px) saturate(1.4); -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border-bottom:1px solid var(--hair)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex:0 0 auto;transition:background .3s}
+  body.running .dot{background:var(--accent);animation:pulse 1.7s infinite}
+  body.paused .dot{background:#e0a23b;animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(111,208,196,.5)}70%{box-shadow:0 0 0 7px rgba(111,208,196,0)}100%{box-shadow:0 0 0 0 rgba(111,208,196,0)}}
+  .dir{font-size:14.5px;font-weight:600;letter-spacing:.01em}
+  .dir .src{color:var(--dim);font-weight:500}
+  .dir .arrow{color:var(--dim);margin:0 6px;font-weight:400}
+  .cap{font-size:11.5px;color:var(--dim);margin-left:2px}
+  .gear{margin-left:auto;background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:2px 4px;line-height:1;transition:color .15s}
+  .gear:hover{color:var(--txt)}
+  .stage{position:absolute;inset:0;overflow-y:auto;padding:88px 7vw 210px;scroll-behavior:smooth}
+  .stage::-webkit-scrollbar{width:7px} .stage::-webkit-scrollbar-thumb{background:var(--hair);border-radius:4px}
+  .line{font-size:clamp(26px,4.4vw,40px);line-height:1.42;font-weight:600;margin:0 0 20px;letter-spacing:.005em;opacity:.42;transition:opacity .35s}
+  .line.cur{opacity:1}
+  .line .src{display:block;font-size:15px;color:var(--dim);font-weight:400;margin-bottom:5px;letter-spacing:0}
+  .txt::after{content:"";display:inline-block;width:2px;height:.95em;background:var(--accent);margin-left:3px;vertical-align:-2px;opacity:0}
+  body.running .line.cur .txt::after{opacity:.85;animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .ph{color:var(--dim);text-align:center;margin-top:22vh;font-size:16px;line-height:2}
+  .ph .big{display:block;font-size:23px;color:#c3ccd6;margin-bottom:8px;font-weight:600}
+  .pill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(28px + env(safe-area-inset-bottom,0));z-index:6;
+    display:flex;align-items:center;gap:6px;padding:8px;border-radius:44px;background:var(--frost);
+    backdrop-filter:blur(22px) saturate(1.4); -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border:1px solid var(--hair);box-shadow:0 10px 34px rgba(0,0,0,.42)}
+  .pbtn{border:none;background:none;color:var(--txt);cursor:pointer;border-radius:50%;display:grid;place-items:center;transition:background .15s,transform .1s}
+  .pbtn:active{transform:scale(.93)}
+  .hero{width:60px;height:60px;font-size:25px;background:var(--accent);color:#06231f;box-shadow:0 4px 14px rgba(111,208,196,.35)}
+  body.running .hero{background:var(--red);color:#fff;box-shadow:0 4px 14px rgba(224,104,95,.35)}
+  .mini{width:48px;height:48px;font-size:19px;background:rgba(255,255,255,.06)}
+  .mini:hover{background:rgba(255,255,255,.12)}
+  .hidden{display:none!important}
+  .scrim{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--sheet);border-top:1px solid var(--hair);
+    border-radius:20px 20px 0 0;padding:10px 20px calc(26px + env(safe-area-inset-bottom,0));
+    transform:translateY(102%);transition:transform .26s cubic-bezier(.32,.72,0,1);max-width:560px;margin:0 auto}
+  .sheet.open{transform:translateY(0)}
+  .grab{width:38px;height:4px;border-radius:2px;background:var(--hair);margin:2px auto 16px}
+  .fld{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--hair)}
+  .fld:last-child{border-bottom:none}
+  .fld label{font-size:14px;color:var(--dim);flex:0 0 92px}
+  .fld .ctl{flex:1;display:flex;justify-content:flex-end;align-items:center}
+  select,input[type=password]{font-family:inherit;font-size:14px;background:rgba(255,255,255,.05);color:var(--txt);
+    border:1px solid var(--hair);border-radius:9px;padding:8px 11px;max-width:230px}
+  select{min-width:150px}
+  input[type=password]{width:170px}
+  .save{font-size:13px;font-weight:600;background:var(--accent);color:#06231f;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;margin-left:8px}
+  .hint{font-size:12px;color:var(--dim);padding:10px 2px 0;line-height:1.6}
+  .hint a{color:var(--accent);text-decoration:none}
+  .sw{position:relative;width:46px;height:28px;flex:0 0 auto}
+  .sw input{opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sw .track{position:absolute;inset:0;border-radius:16px;background:rgba(255,255,255,.13);transition:background .18s;pointer-events:none}
+  .sw .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .18s;pointer-events:none}
+  .sw input:checked~.track{background:var(--accent)} .sw input:checked~.knob{transform:translateX(18px)}
+</style>
+</head>
+<body>
+  <div class="top">
+    <span class="dot" id="dot"></span>
+    <span class="dir"><span class="src" id="dsrc">自動偵測</span><span class="arrow">→</span><span id="dtgt">中文</span></span>
+    <span class="cap" id="cap"></span>
+    <button class="gear" id="gear" aria-label="設定">⚙</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="ph" id="ph"><span class="big">即時翻譯</span>按下方按鈕，對方講話就會即時翻成字幕。</div>
+  </div>
+
+  <div class="pill" id="pill">
+    <button class="pbtn mini run-only hidden" id="pause" aria-label="暫停">⏸</button>
+    <button class="pbtn hero" id="hero" aria-label="開始">●</button>
+    <button class="pbtn mini run-only hidden" id="stopb" aria-label="停止">⏹</button>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet">
+    <div class="grab"></div>
+    <div class="fld"><label>🎙 輸入裝置</label><div class="ctl"><select id="inDev"><option value="">預設麥克風</option></select></div></div>
+    <div class="fld"><label>🗣 講者語言</label><div class="ctl"><span class="cap">自動偵測（無法鎖定）</span></div></div>
+    <div class="fld"><label>💬 譯成</label><div class="ctl"><select id="target"></select></div></div>
+    <div class="fld"><label>🔊 語音輸出</label><div class="ctl"><span class="sw"><input type="checkbox" id="voice"><span class="track"></span><span class="knob"></span></span></div></div>
+    <div class="fld"><label>🔑 API key</label><div class="ctl"><input type="password" id="key" placeholder="貼上 Gemini key"><button class="save" id="saveKey">存</button></div></div>
+    <div class="hint">需要一把 Google Gemini API key（僅存在你的瀏覽器、不外傳）。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">在此免費取得 →</a></div>
+  </div>
+
+<script>
+const $ = id => document.getElementById(id);
+const WS_BASE = "wss://generativelanguage.googleapis.com/ws/"+
+  "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
+const MODEL = "models/gemini-3.5-live-translate-preview";
+const RATE_IN = 16000, RATE_OUT = 24000, CHUNK = 1600;
+const LANGS = [["km","高棉文"],["zh-Hant","中文"],["en","英文"],["zh-Hans","中文（簡）"],["vi","越南文"],["th","泰文"],["ja","日文"],["ko","韓文"]];
+const LABEL = Object.fromEntries(LANGS); LABEL["auto"]="自動偵測";
+for(const [c,n] of LANGS){ const o=document.createElement("option"); o.value=c; o.textContent=n; if(c==="en")o.selected=true; $("target").appendChild(o); }
+
+function getKey(){ return localStorage.getItem("lt_key")||""; }
+$("saveKey").onclick=()=>{ const v=$("key").value.trim(); if(v){ localStorage.setItem("lt_key",v); $("key").value=""; setCap("key 已儲存"); refreshOnboard(); } };
+
+function refreshDir(){ $("dtgt").textContent=LABEL[$("target").value]||$("target").value; }
+$("target").onchange=()=>{ refreshDir(); localStorage.setItem("lt_target",$("target").value); };
+if(localStorage.getItem("lt_target")) $("target").value=localStorage.getItem("lt_target");
+refreshDir();
+function setCap(t){ $("cap").textContent=t; }
+function setDetected(code){ $("dsrc").textContent=LABEL[code]||code; }
+
+const stage=$("stage"); let curLine=null, srcBuf="";
+function newLine(){ if($("ph")) $("ph").remove(); if(curLine) curLine.classList.remove("cur");
+  curLine=document.createElement("div"); curLine.className="line cur";
+  curLine.innerHTML='<span class="src" style="display:none"></span><span class="txt"></span>';
+  stage.appendChild(curLine); return curLine; }
+function onSrc(t){ if(!curLine) newLine(); const s=curLine.querySelector(".src"); s.style.display="block"; srcBuf+=t; s.textContent=srcBuf; if(/[。！？!?]$/.test(t.trim())) srcBuf=""; }
+function onOut(t){ if(!curLine) newLine(); curLine.querySelector(".txt").textContent+=t; if(/[。！？!?]$/.test(t.trim())) curLine=null; stage.scrollTop=stage.scrollHeight; }
+
+function b64(buf){ const b=new Uint8Array(buf); let s=""; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
+function b64ToInt16(d){ const bin=atob(d); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Int16Array(u.buffer); }
+
+class Player{
+  constructor(){ this.ctx=null; this.cursor=0; }
+  async ensure(){ if(!this.ctx) this.ctx=new AudioContext({sampleRate:RATE_OUT}); if(this.ctx.state==="suspended") await this.ctx.resume(); this.cursor=Math.max(this.cursor,this.ctx.currentTime); }
+  feed(i16){ if(!this.ctx) return; const now=this.ctx.currentTime;
+    if(this.cursor-now>3){ let r=0; for(let i=0;i<i16.length;i++) r+=i16[i]*i16[i]; if(Math.sqrt(r/i16.length)<100) return; }
+    const f=new Float32Array(i16.length); for(let i=0;i<i16.length;i++) f[i]=i16[i]/32768;
+    const b=this.ctx.createBuffer(1,f.length,RATE_OUT); b.getChannelData(0).set(f);
+    const s=this.ctx.createBufferSource(); s.buffer=b; s.connect(this.ctx.destination);
+    if(this.cursor<now) this.cursor=now+0.05; s.start(this.cursor); this.cursor+=b.duration; }
+  close(){ try{this.ctx&&this.ctx.close();}catch(e){} this.ctx=null; }
+}
+let player=null;
+
+const captureWorklet=`
+class PCMCapture extends AudioWorkletProcessor{ constructor(){ super(); this.buf=[]; this.n=${CHUNK}; }
+  process(inputs){ const ch=inputs[0][0]; if(ch){ for(let i=0;i<ch.length;i++) this.buf.push(ch[i]);
+    while(this.buf.length>=this.n){ const fr=this.buf.splice(0,this.n); const p=new Int16Array(this.n);
+      for(let i=0;i<this.n;i++){ let s=Math.max(-1,Math.min(1,fr[i])); p[i]=s<0?s*0x8000:s*0x7FFF; }
+      this.port.postMessage(p.buffer,[p.buffer]); } } return true; } }
+registerProcessor('pcm-capture',PCMCapture);`;
+let workletURL=null, micCtx=null, micStream=null, micNode=null;
+
+async function listDevices(){
+  try{ const ds=await navigator.mediaDevices.enumerateDevices();
+    const ins=ds.filter(d=>d.kind==="audioinput"); const sel=$("inDev"); const cur=sel.value;
+    sel.innerHTML='<option value="">預設麥克風</option>';
+    for(const d of ins){ if(!d.deviceId) continue; const o=document.createElement("option"); o.value=d.deviceId; o.textContent=d.label||("麥克風 "+d.deviceId.slice(0,6)); sel.appendChild(o); }
+    if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  }catch(e){}
+}
+async function startMic(){
+  micCtx=new AudioContext({sampleRate:RATE_IN});
+  if(!workletURL) workletURL=URL.createObjectURL(new Blob([captureWorklet],{type:"text/javascript"}));
+  await micCtx.audioWorklet.addModule(workletURL);
+  const dev=$("inDev").value;
+  micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:dev?{exact:dev}:undefined,channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  const src=micCtx.createMediaStreamSource(micStream);
+  micNode=new AudioWorkletNode(micCtx,'pcm-capture');
+  micNode.port.onmessage=e=>{ if(!paused) sendPCM(e.data); };
+  const mute=micCtx.createGain(); mute.gain.value=0;
+  src.connect(micNode); micNode.connect(mute); mute.connect(micCtx.destination);
+  listDevices();
+}
+function stopMic(){ try{micStream&&micStream.getTracks().forEach(t=>t.stop());}catch(e){} try{micCtx&&micCtx.close();}catch(e){} micCtx=micStream=micNode=null; }
+
+let ws=null, running=false, stopReq=false, paused=false;
+function sendPCM(buffer){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({realtimeInput:{audio:{data:b64(buffer),mimeType:"audio/pcm;rate="+RATE_IN}}})); }
+function connect(){
+  const key=getKey(); if(!key){ setCap("⚠️ 沒有 key"); return; }
+  ws=new WebSocket(WS_BASE+key);
+  ws.onopen=()=>{ ws.send(JSON.stringify({setup:{model:MODEL,
+      generationConfig:{responseModalities:["AUDIO"],translationConfig:{targetLanguageCode:$("target").value}},
+      inputAudioTranscription:{},outputAudioTranscription:{},contextWindowCompression:{slidingWindow:{}}}}));
+    setCap("連線中…"); };
+  ws.onmessage=async e=>{
+    let txt=typeof e.data==="string"?e.data:(e.data instanceof Blob?await e.data.text():new TextDecoder().decode(e.data));
+    let msg; try{ msg=JSON.parse(txt); }catch(err){ return; }
+    if(msg.setupComplete){ setCap(""); return; }
+    if(msg.goAway){ try{ws.close();}catch(e){} return; }
+    const sc=msg.serverContent||{};
+    const it=sc.inputTranscription||{};
+    if(it.text) onSrc(it.text);
+    if(it.languageCode) setDetected(it.languageCode);
+    const ot=(sc.outputTranscription||{}).text; if(ot) onOut(ot);
+    if(player) for(const p of (sc.modelTurn||{}).parts||[]){ const d=p.inlineData&&p.inlineData.data; if(d) player.feed(b64ToInt16(d)); }
+  };
+  ws.onclose=()=>{ if(running&&!stopReq){ setCap("重連中…"); setTimeout(connect,800); } };
+  ws.onerror=()=>{};
+}
+
+function setRunUI(){ document.body.classList.toggle("running",running); document.body.classList.toggle("paused",paused);
+  document.querySelectorAll(".run-only").forEach(e=>e.classList.toggle("hidden",!running));
+  $("hero").textContent=running?"⏹":"●"; $("hero").setAttribute("aria-label",running?"停止":"開始");
+  $("pause").textContent=paused?"▶":"⏸"; }
+
+async function start(){
+  if(running) return;
+  if(!getKey()){ setCap("⚠️ 先設定 key"); openSheet(); return; }
+  running=true; stopReq=false; paused=false;
+  stage.querySelectorAll(".line").forEach(n=>n.remove()); curLine=null; srcBuf=""; setDetected("auto"); setCap("啟動中…");
+  setRunUI();
+  if($("voice").checked){ player=new Player(); try{ await player.ensure(); }catch(e){} }
+  connect();
+  try{ await startMic(); }catch(e){ setCap("⚠️ 麥克風失敗："+e.message); stop(); }
+}
+function stop(){ stopReq=true; running=false; paused=false; try{ws&&ws.close();}catch(e){} stopMic(); if(player){player.close();player=null;}
+  setRunUI(); setDetected("auto"); setCap("已停止"); }
+function togglePause(){ if(!running) return; paused=!paused; setRunUI(); setCap(paused?"已暫停":""); }
+
+$("hero").onclick=()=>{ running?stop():start(); };
+$("stopb").onclick=stop;
+$("pause").onclick=togglePause;
+
+function openSheet(){ $("scrim").classList.add("open"); $("sheet").classList.add("open"); listDevices(); }
+function closeSheet(){ $("scrim").classList.remove("open"); $("sheet").classList.remove("open"); }
+$("gear").onclick=openSheet; $("scrim").onclick=closeSheet;
+
+function refreshOnboard(){
+  if(getKey()) return;
+  const ph=$("ph"); if(ph) ph.innerHTML='<span class="big">歡迎使用</span>① 點右上 ⚙ 貼上你的 Gemini API key<br>② 按下方 ● 開始，對方講話就會即時翻成字幕';
+}
+refreshOnboard();
+listDevices();
+if(!getKey()) setTimeout(openSheet, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# --- secrets: never commit any keys/credentials ---
+*-keys.json
+**/*-keys.json
+*-key.json
+**/*-key.json
+.env
+.env.*
+secrets.*
+
+# --- generated / bloat audio (do not ship demo recordings) ---
+*.aiff
+*_translated*.wav
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
