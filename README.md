@@ -34,7 +34,7 @@ No install, no account, no backend. You bring your own Google Gemini API key (it
 3. Click **Create API key** and copy it (it looks like `AIza…`).
 4. Paste it into the app's settings. Done — it's saved in your browser only.
 
-> **Note on billing / tiers.** This app uses Gemini's real-time model `gemini-3.5-live-translate-preview`. A free key may work, but this preview model can require **billing enabled** on your Google Cloud project. If the app gets stuck on "connecting" or won't translate, enable billing for your project in Google Cloud and try again.
+> **Note on tiers & privacy.** The free tier works — a free Gemini key (no billing / no credit card) can run the real-time model. The free tier is **rate-limited** (heavy use can hit a `429` quota error), and on the free tier **Google may use your audio to improve its products and may have it human-reviewed** — so don't use a free key for confidential conversations. For higher quota and privacy, enable billing (paid tier), where your prompts and responses are not used for training.
 
 ## Running it
 
