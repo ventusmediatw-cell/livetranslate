@@ -24,7 +24,7 @@ No install, no account, no backend. You bring your own Google Gemini API key (it
 1. **Get a Google Gemini API key** (free — see below).
 2. **Open the app** (see *Running it*).
 3. Click the **⚙ gear** (top right) and paste your key.
-4. Pick the language to **translate into**.
+4. Pick the language under **Translate to**.
 5. Press the **● button** and start speaking. Allow microphone access when prompted.
 
 ## Getting a Gemini API key

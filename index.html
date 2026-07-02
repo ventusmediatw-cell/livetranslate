@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -81,30 +81,30 @@
 <body>
   <div class="top">
     <span class="dot" id="dot"></span>
-    <span class="dir"><span class="src" id="dsrc">自動偵測</span><span class="arrow">→</span><span id="dtgt">中文</span></span>
+    <span class="dir"><span class="src" id="dsrc">Auto-detect</span><span class="arrow">→</span><span id="dtgt">English</span></span>
     <span class="cap" id="cap"></span>
-    <button class="gear" id="gear" aria-label="設定">⚙</button>
+    <button class="gear" id="gear" aria-label="Settings">⚙</button>
   </div>
 
   <div class="stage" id="stage">
-    <div class="ph" id="ph"><span class="big">即時翻譯</span>按下方按鈕，對方講話就會即時翻成字幕。</div>
+    <div class="ph" id="ph"><span class="big">LiveTranslate</span>Press the button below — as the other person speaks, live subtitles appear.</div>
   </div>
 
   <div class="pill" id="pill">
-    <button class="pbtn mini run-only hidden" id="pause" aria-label="暫停">⏸</button>
-    <button class="pbtn hero" id="hero" aria-label="開始">●</button>
-    <button class="pbtn mini run-only hidden" id="stopb" aria-label="停止">⏹</button>
+    <button class="pbtn mini run-only hidden" id="pause" aria-label="Pause">⏸</button>
+    <button class="pbtn hero" id="hero" aria-label="Start">●</button>
+    <button class="pbtn mini run-only hidden" id="stopb" aria-label="Stop">⏹</button>
   </div>
 
   <div class="scrim" id="scrim"></div>
   <div class="sheet" id="sheet">
     <div class="grab"></div>
-    <div class="fld"><label>🎙 輸入裝置</label><div class="ctl"><select id="inDev"><option value="">預設麥克風</option></select></div></div>
-    <div class="fld"><label>🗣 講者語言</label><div class="ctl"><span class="cap">自動偵測（無法鎖定）</span></div></div>
-    <div class="fld"><label>💬 譯成</label><div class="ctl"><select id="target"></select></div></div>
-    <div class="fld"><label>🔊 語音輸出</label><div class="ctl"><span class="sw"><input type="checkbox" id="voice"><span class="track"></span><span class="knob"></span></span></div></div>
-    <div class="fld"><label>🔑 API key</label><div class="ctl"><input type="password" id="key" placeholder="貼上 Gemini key"><button class="save" id="saveKey">存</button></div></div>
-    <div class="hint">需要一把 Google Gemini API key（僅存在你的瀏覽器、不外傳）。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">在此免費取得 →</a></div>
+    <div class="fld"><label>🎙 Input device</label><div class="ctl"><select id="inDev"><option value="">Default microphone</option></select></div></div>
+    <div class="fld"><label>🗣 Speaker language</label><div class="ctl"><span class="cap">Auto-detect (cannot be locked)</span></div></div>
+    <div class="fld"><label>💬 Translate to</label><div class="ctl"><select id="target"></select></div></div>
+    <div class="fld"><label>🔊 Spoken translation</label><div class="ctl"><span class="sw"><input type="checkbox" id="voice"><span class="track"></span><span class="knob"></span></span></div></div>
+    <div class="fld"><label>🔑 API key</label><div class="ctl"><input type="password" id="key" placeholder="Paste Gemini key"><button class="save" id="saveKey">Save</button></div></div>
+    <div class="hint">Requires a Google Gemini API key (stored only in your browser, never sent anywhere else). <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get one free here →</a></div>
   </div>
 
 <script>
@@ -113,12 +113,12 @@ const WS_BASE = "wss://generativelanguage.googleapis.com/ws/"+
   "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 const MODEL = "models/gemini-3.5-live-translate-preview";
 const RATE_IN = 16000, RATE_OUT = 24000, CHUNK = 1600;
-const LANGS = [["km","高棉文"],["zh-Hant","中文"],["en","英文"],["zh-Hans","中文（簡）"],["vi","越南文"],["th","泰文"],["ja","日文"],["ko","韓文"]];
-const LABEL = Object.fromEntries(LANGS); LABEL["auto"]="自動偵測";
+const LANGS = [["km","Khmer"],["zh-Hant","Chinese (Traditional)"],["en","English"],["zh-Hans","Chinese (Simplified)"],["vi","Vietnamese"],["th","Thai"],["ja","Japanese"],["ko","Korean"]];
+const LABEL = Object.fromEntries(LANGS); LABEL["auto"]="Auto-detect";
 for(const [c,n] of LANGS){ const o=document.createElement("option"); o.value=c; o.textContent=n; if(c==="en")o.selected=true; $("target").appendChild(o); }
 
 function getKey(){ return localStorage.getItem("lt_key")||""; }
-$("saveKey").onclick=()=>{ const v=$("key").value.trim(); if(v){ localStorage.setItem("lt_key",v); $("key").value=""; setCap("key 已儲存"); refreshOnboard(); } };
+$("saveKey").onclick=()=>{ const v=$("key").value.trim(); if(v){ localStorage.setItem("lt_key",v); $("key").value=""; setCap("Key saved"); refreshOnboard(); } };
 
 function refreshDir(){ $("dtgt").textContent=LABEL[$("target").value]||$("target").value; }
 $("target").onchange=()=>{ refreshDir(); localStorage.setItem("lt_target",$("target").value); };
@@ -163,8 +163,8 @@ let workletURL=null, micCtx=null, micStream=null, micNode=null;
 async function listDevices(){
   try{ const ds=await navigator.mediaDevices.enumerateDevices();
     const ins=ds.filter(d=>d.kind==="audioinput"); const sel=$("inDev"); const cur=sel.value;
-    sel.innerHTML='<option value="">預設麥克風</option>';
-    for(const d of ins){ if(!d.deviceId) continue; const o=document.createElement("option"); o.value=d.deviceId; o.textContent=d.label||("麥克風 "+d.deviceId.slice(0,6)); sel.appendChild(o); }
+    sel.innerHTML='<option value="">Default microphone</option>';
+    for(const d of ins){ if(!d.deviceId) continue; const o=document.createElement("option"); o.value=d.deviceId; o.textContent=d.label||("Microphone "+d.deviceId.slice(0,6)); sel.appendChild(o); }
     if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
   }catch(e){}
 }
@@ -186,12 +186,12 @@ function stopMic(){ try{micStream&&micStream.getTracks().forEach(t=>t.stop());}c
 let ws=null, running=false, stopReq=false, paused=false;
 function sendPCM(buffer){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({realtimeInput:{audio:{data:b64(buffer),mimeType:"audio/pcm;rate="+RATE_IN}}})); }
 function connect(){
-  const key=getKey(); if(!key){ setCap("⚠️ 沒有 key"); return; }
+  const key=getKey(); if(!key){ setCap("⚠️ No key"); return; }
   ws=new WebSocket(WS_BASE+key);
   ws.onopen=()=>{ ws.send(JSON.stringify({setup:{model:MODEL,
       generationConfig:{responseModalities:["AUDIO"],translationConfig:{targetLanguageCode:$("target").value}},
       inputAudioTranscription:{},outputAudioTranscription:{},contextWindowCompression:{slidingWindow:{}}}}));
-    setCap("連線中…"); };
+    setCap("Connecting…"); };
   ws.onmessage=async e=>{
     let txt=typeof e.data==="string"?e.data:(e.data instanceof Blob?await e.data.text():new TextDecoder().decode(e.data));
     let msg; try{ msg=JSON.parse(txt); }catch(err){ return; }
@@ -204,28 +204,28 @@ function connect(){
     const ot=(sc.outputTranscription||{}).text; if(ot) onOut(ot);
     if(player) for(const p of (sc.modelTurn||{}).parts||[]){ const d=p.inlineData&&p.inlineData.data; if(d) player.feed(b64ToInt16(d)); }
   };
-  ws.onclose=()=>{ if(running&&!stopReq){ setCap("重連中…"); setTimeout(connect,800); } };
+  ws.onclose=()=>{ if(running&&!stopReq){ setCap("Reconnecting…"); setTimeout(connect,800); } };
   ws.onerror=()=>{};
 }
 
 function setRunUI(){ document.body.classList.toggle("running",running); document.body.classList.toggle("paused",paused);
   document.querySelectorAll(".run-only").forEach(e=>e.classList.toggle("hidden",!running));
-  $("hero").textContent=running?"⏹":"●"; $("hero").setAttribute("aria-label",running?"停止":"開始");
+  $("hero").textContent=running?"⏹":"●"; $("hero").setAttribute("aria-label",running?"Stop":"Start");
   $("pause").textContent=paused?"▶":"⏸"; }
 
 async function start(){
   if(running) return;
-  if(!getKey()){ setCap("⚠️ 先設定 key"); openSheet(); return; }
+  if(!getKey()){ setCap("⚠️ Set a key first"); openSheet(); return; }
   running=true; stopReq=false; paused=false;
-  stage.querySelectorAll(".line").forEach(n=>n.remove()); curLine=null; srcBuf=""; setDetected("auto"); setCap("啟動中…");
+  stage.querySelectorAll(".line").forEach(n=>n.remove()); curLine=null; srcBuf=""; setDetected("auto"); setCap("Starting…");
   setRunUI();
   if($("voice").checked){ player=new Player(); try{ await player.ensure(); }catch(e){} }
   connect();
-  try{ await startMic(); }catch(e){ setCap("⚠️ 麥克風失敗："+e.message); stop(); }
+  try{ await startMic(); }catch(e){ setCap("⚠️ Microphone failed: "+e.message); stop(); }
 }
 function stop(){ stopReq=true; running=false; paused=false; try{ws&&ws.close();}catch(e){} stopMic(); if(player){player.close();player=null;}
-  setRunUI(); setDetected("auto"); setCap("已停止"); }
-function togglePause(){ if(!running) return; paused=!paused; setRunUI(); setCap(paused?"已暫停":""); }
+  setRunUI(); setDetected("auto"); setCap("Stopped"); }
+function togglePause(){ if(!running) return; paused=!paused; setRunUI(); setCap(paused?"Paused":""); }
 
 $("hero").onclick=()=>{ running?stop():start(); };
 $("stopb").onclick=stop;
@@ -237,7 +237,7 @@ $("gear").onclick=openSheet; $("scrim").onclick=closeSheet;
 
 function refreshOnboard(){
   if(getKey()) return;
-  const ph=$("ph"); if(ph) ph.innerHTML='<span class="big">歡迎使用</span>① 點右上 ⚙ 貼上你的 Gemini API key<br>② 按下方 ● 開始，對方講話就會即時翻成字幕';
+  const ph=$("ph"); if(ph) ph.innerHTML='<span class="big">Welcome</span>① Tap ⚙ (top right) and paste your Gemini API key<br>② Press ● below to start — live subtitles appear as the other person speaks';
 }
 refreshOnboard();
 listDevices();
